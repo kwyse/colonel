@@ -3,6 +3,9 @@ name = "colonel"
 version = "0.1.0"
 authors = ["Krishan Wyse <kwysek@gmail.com>"]
 
+[dependencies]
+spin = "0.4.4"
+
 [lib]
 crate-type = ["staticlib"]
 
