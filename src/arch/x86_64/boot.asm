@@ -31,6 +31,8 @@ start:
     call set_up_page_tables
     call enable_paging
 
+    call set_up_sse
+
     lgdt [gdt64.pointer]
     mov ax, gdt64.data
     mov ss, ax
@@ -198,6 +200,32 @@ enable_paging:
     mov cr0, eax
 
     ret
+
+; Check if Streaming SIMD Extensions (SSE) is supported by querying
+; cpuid. If it is, set the bits to prevent SSE instructions generating
+; a #UD (Invalid Opcode, 0x6). The cr0 and cr4 registers need to be
+; updated. In the cr0 register, the EM bit (coprocessor emulation)
+; needs to be cleared and the MP bit (coprocessor monitoring) needs to
+; be set. In the cr4 register, set the OSFXSR and OSXMMEXCPT bits.
+set_up_sse:
+    mov eax, 1
+    cpuid
+    test edx, 1 << 25
+    jz .no_sse
+
+    mov eax, cr0
+    and ax, 0xfffb
+    or ax, 2
+    mov cr0, eax
+    mov eax, cr4
+    or ax, 0b11 << 9
+    mov cr4, eax
+
+    ret
+
+.no_sse:
+    mov al, '3'
+    jmp error
 
 ; Prints `ERR: ` and the current error code (stored in `al`) to screen
 ; and then halts execution. The first byte in each word is the

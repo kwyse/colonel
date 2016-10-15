@@ -1,8 +1,12 @@
+name ?= colonel
 arch ?= x86_64
+target ?= $(arch)-unknown-linux-gnu
 
 build_dir := target
 kernel := $(build_dir)/kernel-$(arch).bin
 iso := $(build_dir)/os-$(arch).iso
+rust_src_files := $(shell find . -type f -name '*.rs')
+rust_lib := $(build_dir)/$(target)/debug/lib$(name).a
 
 src_dir := src
 asm_src_dir := $(src_dir)/arch/$(arch)
@@ -18,7 +22,7 @@ all: build
 
 clean:
 	@echo Cleaning $(build_dir)
-	@rm -rf $(build_dir)
+	@cargo clean
 
 build: $(iso)
 
@@ -33,10 +37,14 @@ $(iso): $(kernel) $(grub_cfg)
 	@cp $(grub_cfg) $(build_dir)/isofiles/boot/grub
 	@grub-mkrescue -o $(iso) $(build_dir)/isofiles 2> /dev/null
 
-$(kernel): $(linker_script) $(asm_obj_files)
+$(kernel): $(linker_script) $(asm_obj_files) $(rust_lib)
 	@echo Linking object files
 	@mkdir -p $(build_dir)
-	@ld -n -o $(kernel) -T $(linker_script) $(asm_obj_files)
+	@ld -n --gc-sections -o $(kernel) -T $(linker_script) $(asm_obj_files) $(rust_lib)
+
+$(rust_lib): $(rust_src_files)
+	@echo Building Rust crate
+	@cargo build --target $(target) 2> /dev/null
 
 $(build_dir)/obj/%.o: $(asm_src_dir)/%.asm
 	@echo Assembling $< to $@
